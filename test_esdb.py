@@ -1,7 +1,14 @@
+import logging
 import unittest
 import sqlite3
 
+from ostruct import OpenStruct
 from esdb import select
+from esdb import clause
+from esdb import insert
+from esdb import count
+
+logger = logging.getLogger(__name__)
 
 
 class SelectTests(unittest.TestCase):
@@ -48,6 +55,25 @@ class SelectTests(unittest.TestCase):
 
         self.assertRaises(StopIteration, lambda: next(people))
 
+    def test_basic_count(self):
+        self.assertEquals(3, count(self.db, "people"))
+
+    def test_basic_insert(self):
+        person = OpenStruct(id=4,
+                            first_name="Bam Bam",
+                            last_name="Rubble")
+
+        n = count(self.db, "people",
+                  clause("first_name = %s", person.first_name))
+        self.assertEquals(0, n)
+
+        insert(self.db, "people", person)
+
+        n = count(self.db, "people",
+                  clause("first_name = %s", person.first_name))
+        self.assertEquals(1, n)
+
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     unittest.main()
