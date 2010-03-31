@@ -19,6 +19,12 @@ class Table(object):
     def delete(self, where=None):
         return self.conn.delete(self.table_name, where=where)
 
+    def commit(self):
+        return self.conn.commit()
+
+    def rollback(self):
+        return self.conn.rollback()
+
 
 class WrappedConnection(object):
 
@@ -39,3 +45,9 @@ class WrappedConnection(object):
 
     def get_table(self, table_name):
         return Table(self, table_name)
+
+    def commit(self):
+        self.conn.commit()
+
+    def rollback(self):
+        self.conn.rollback()

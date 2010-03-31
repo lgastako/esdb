@@ -32,8 +32,12 @@ class DatabaseTests(unittest.TestCase):
 
         cursor.execute("""INSERT INTO people (id, first_name, last_name)
                           VALUES (?, ?, ?)""", (3, "Wilma", "Flintstone"))
+        self.db.commit()
         self.wdb = WrappedConnection(self.db)
         self.people_table = self.wdb.get_table("people")
+        self.bam_bam = OpenStruct(id=4,
+                                  first_name="Bam Bam",
+                                  last_name="Rubble")
 
 
 class FunctionTests(DatabaseTests):
@@ -123,9 +127,7 @@ class MethodTests(DatabaseTests):
         self.assertEquals(3, self.wdb.count("people"))
 
     def test_basic_insert(self):
-        person = OpenStruct(id=4,
-                            first_name="Bam Bam",
-                            last_name="Rubble")
+        person = self.bam_bam
 
         n = self.wdb.count("people",
                            clause("first_name = %s", person.first_name))
@@ -144,6 +146,20 @@ class MethodTests(DatabaseTests):
     def test_basic_individual_delete(self):
         self.wdb.delete("people", clause("first_name = %s", "Barney"))
         self.assertEquals(2, self.wdb.count("people"))
+
+    def test_rollback(self):
+        self.wdb.insert("people", self.bam_bam)
+        self.assertEquals(4, self.wdb.count("people"))
+        self.wdb.rollback()
+        self.assertEquals(3, self.wdb.count("people"))
+
+    def test_commit(self):
+        self.wdb.insert("people", self.bam_bam)
+        self.assertEquals(4, self.wdb.count("people"))
+        self.wdb.commit()
+        self.assertEquals(4, self.wdb.count("people"))
+        self.wdb.rollback()
+        self.assertEquals(4, self.wdb.count("people"))
 
 
 class MethodTableTests(DatabaseTests):
@@ -203,6 +219,20 @@ class MethodTableTests(DatabaseTests):
     def test_basic_individual_delete(self):
         self.people_table.delete(clause("first_name = %s", "Barney"))
         self.assertEquals(2, self.people_table.count())
+
+    def test_rollback(self):
+        self.people_table.insert(self.bam_bam)
+        self.assertEquals(4, self.people_table.count())
+        self.people_table.rollback()
+        self.assertEquals(3, self.people_table.count())
+
+    def test_commit(self):
+        self.people_table.insert(self.bam_bam)
+        self.assertEquals(4, self.people_table.count())
+        self.people_table.commit()
+        self.assertEquals(4, self.wdb.count("people"))
+        self.people_table.rollback()
+        self.assertEquals(4, self.wdb.count("people"))
 
 
 if __name__ == '__main__':
