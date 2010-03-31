@@ -76,7 +76,8 @@ def count(db, table, where=None):
 def get_dialect(cursor):
     if cursor.__class__.__module__ == "sqlite3":
         return SQLLite3Dialect
-    raise "Unknown dialect."
+    # TODO: cleanup
+    raise Exception("Unknown dialect.")
 
 
 def insert(db, table, objects, cols=None):
