@@ -19,6 +19,15 @@ class PostgresDialect(object):
     placeholder = "I DUNNO"
 
 
+def execute_query(cursor, query, args=None):
+    logger.debug("insert query: <<%s>>" % query)
+    logger.debug("args: <<%s>>" % repr(args))
+    if args:
+        cursor.execute(query, args)
+    else:
+        cursor.execute(query)
+
+
 def open_structify(row, description):
     # For now this will work, but we'll have to adapt it for each database
     # driver/config depending on if it's using dict cursors or not, etc.
@@ -30,15 +39,16 @@ def open_structify(row, description):
 
 
 def select(db, query, where=None):
-    c = db.cursor()
     if where:
         query += u" WHERE " + unicode(where)
 
-    logger.debug("Executing query: %s" % query)
-    c.execute(query)
+    cursor = db.cursor()
 
-    for row in c.fetchall():
-        yield open_structify(row, c.description)
+    logger.debug("Executing query: %s" % query)
+    execute_query(cursor, query)
+
+    for row in cursor.fetchall():
+        yield open_structify(row, cursor.description)
 
 
 def clause(fragment, *args, **kwargs):
@@ -95,18 +105,23 @@ def insert(db, table, objects, cols=None):
 
     query += ")"
 
+    logger.debug("col_names: <<%s>>" % repr(col_names))
     for obj in objects:
         args = []
         for c in col_names:
             value = getattr(obj, c, None)
             args.append(value)
-        logger.debug("insert query: <<%s>>" % query)
-        logger.debug("args: <<%s>>" % repr(args))
-        cursor.execute(query, args)
+        execute_query(cursor, query, args)
 
 
 #def update(db, query, ...
 
 
-def delete(db, table, query):
-    pass
+def delete(db, table, where=None):
+    query = "DELETE FROM %s" % table
+
+    if where:
+        query += " WHERE " + unicode(where)
+
+    cursor = db.cursor()
+    execute_query(cursor, query)

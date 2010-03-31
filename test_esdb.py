@@ -6,6 +6,7 @@ from ostruct import OpenStruct
 from esdb import select
 from esdb import clause
 from esdb import insert
+from esdb import delete
 from esdb import count
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,14 @@ class SelectTests(unittest.TestCase):
         n = count(self.db, "people",
                   clause("first_name = %s", person.first_name))
         self.assertEquals(1, n)
+
+    def test_basic_delete_all(self):
+        delete(self.db, "people")
+        self.assertEquals(0, count(self.db, "people"))
+
+    def test_basic_individual_delete(self):
+        delete(self.db, "people", clause("first_name = %s", "Barney"))
+        self.assertEquals(2, count(self.db, "people"))
 
 
 if __name__ == '__main__':
