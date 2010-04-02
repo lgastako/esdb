@@ -76,6 +76,8 @@ def count(db, table, where=None):
 def get_dialect(cursor):
     if cursor.__class__.__module__ == "sqlite3":
         return SQLLite3Dialect
+    if cursor.__class__.__module__ == "MySQLdb.cursors":
+        return MySQLDialect
     # TODO: cleanup
     raise Exception("Unknown dialect.")
 

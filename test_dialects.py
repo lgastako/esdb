@@ -20,27 +20,33 @@ class DialectTests(unittest.TestCase):
     def drop_table_people(self, db, cursor):
         pass
 
+    def get_create_people_table_ddl(self):
+        return """CREATE TABLE people (
+                               id INTEGER PRIMARY KEY,
+                               first_name VARCHAR(255) NOT NULL,
+                               last_name VARCHAR(255) NOT NULL
+                  )"""
+
+
     def setUp(self):
         self.db = self.get_dialect_connection()
         cursor = self.db.cursor()
         self.drop_table_people(self.db, cursor)
-        cursor.execute("""CREATE TABLE people (
-                            id INTEGER PRIMARY KEY,
-                            first_name VARCHAR(255) NOT NULL,
-                            last_name VARCHAR(255) NOT NULL
-                          )""")
+        cursor.execute(self.get_create_people_table_ddl())
 
-        cursor.execute("""INSERT INTO people (id, first_name, last_name)
-                          VALUES (?, ?, ?)""", (1, "Fred", "Flintstone"))
-
-        cursor.execute("""INSERT INTO people (id, first_name, last_name)
-                          VALUES (?, ?, ?)""", (2, "Barney", "Rubble"))
-
-        cursor.execute("""INSERT INTO people (id, first_name, last_name)
-                          VALUES (?, ?, ?)""", (3, "Wilma", "Flintstone"))
         self.db.commit()
         self.wdb = WrappedConnection(self.db)
         self.people_table = self.wdb.get_table("people")
+        self.people_table.insert(OpenStruct(id=1,
+                                            first_name="Fred",
+                                            last_name="Flintstone"))
+        self.people_table.insert(OpenStruct(id=2,
+                                            first_name="Barney",
+                                            last_name="Rubble"))
+        self.people_table.insert(OpenStruct(id=3,
+                                            first_name="Wilma",
+                                            last_name="Flintstone"))
+        self.db.commit()
         self.bam_bam = OpenStruct(id=4,
                                   first_name="Bam Bam",
                                   last_name="Rubble")
