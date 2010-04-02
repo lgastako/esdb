@@ -1,6 +1,5 @@
 import logging
 import unittest
-import sqlite3
 
 from ostruct import OpenStruct
 from conn import WrappedConnection
@@ -13,11 +12,18 @@ from esdb import count
 logger = logging.getLogger(__name__)
 
 
-class DatabaseTests(unittest.TestCase):
+class DialectTests(unittest.TestCase):
+
+    def get_dialect_connection(self):
+        raise NotImplementedError
+
+    def drop_table_people(self, db, cursor):
+        pass
 
     def setUp(self):
-        self.db = sqlite3.connect(":memory:")
+        self.db = self.get_dialect_connection()
         cursor = self.db.cursor()
+        self.drop_table_people(self.db, cursor)
         cursor.execute("""CREATE TABLE people (
                             id INTEGER PRIMARY KEY,
                             first_name VARCHAR(255) NOT NULL,
@@ -40,9 +46,8 @@ class DatabaseTests(unittest.TestCase):
                                   last_name="Rubble")
 
 
-class FunctionTests(DatabaseTests):
+class FunctionTests(DialectTests):
     """Tests the core functions that act on db api connections."""
-
 
     def test_basic_select(self):
         people = select(self.db,
@@ -95,7 +100,7 @@ class FunctionTests(DatabaseTests):
         self.assertEquals(2, count(self.db, "people"))
 
 
-class MethodTests(DatabaseTests):
+class MethodTests(DialectTests):
     """Tests the DB wrapper objects that wrap a dbapi connection and provide
     the helper functions as methods.
     """
@@ -162,7 +167,7 @@ class MethodTests(DatabaseTests):
         self.assertEquals(4, self.wdb.count("people"))
 
 
-class MethodTableTests(DatabaseTests):
+class MethodTableTests(DialectTests):
     """Same tests but with table objects."""
 
     # def test_basic_select(self):
@@ -233,8 +238,3 @@ class MethodTableTests(DatabaseTests):
         self.assertEquals(4, self.wdb.count("people"))
         self.people_table.rollback()
         self.assertEquals(4, self.wdb.count("people"))
-
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-    unittest.main()
