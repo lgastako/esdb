@@ -2,6 +2,8 @@ from esdb import select as select_f
 from esdb import insert as insert_f
 from esdb import delete as delete_f
 from esdb import count as count_f
+from esdb import table_exists as table_exists_f
+from esdb import drop_table as drop_table_f
 
 
 class Table(object):
@@ -24,6 +26,12 @@ class Table(object):
 
     def rollback(self):
         return self.conn.rollback()
+
+    def exists(self):
+        return self.conn.table_exists(self.table_name)
+
+    def drop(self):
+        return self.conn.drop_table(self.table_name)
 
 
 class WrappedConnection(object):
@@ -51,3 +59,10 @@ class WrappedConnection(object):
 
     def rollback(self):
         self.conn.rollback()
+
+    def table_exists(self, table):
+        return table_exists_f(self.conn, table)
+
+    def drop_table(self, table):
+        return drop_table_f(self.conn, table)
+

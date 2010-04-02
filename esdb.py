@@ -10,13 +10,31 @@ logger = logging.getLogger(__name__)
 class SQLLite3Dialect(object):
     placeholder = "?"
 
+    @staticmethod
+    def table_exists(db, table):
+        return count(db, "sqlite_master",
+                     where=clause("name = %s", table)) > 0
+
 
 class MySQLDialect(object):
     placeholder = "%s"
 
+    @staticmethod
+    def table_exists(db, table):
+        cursor = db.cursor()
+        # TODO: SQL injection problem?
+        cursor.execute("SHOW TABLES LIKE '%s'" % table)
+        rows = cursor.fetchall()
+        return len(rows) > 0
+
 
 class PostgresDialect(object):
-    placeholder = "I DUNNO"
+    placeholder = "%s"
+
+    @staticmethod
+    def table_exists(db, table):
+        return count(db, "pg_tables",
+                     where=clause("tablename = %s", table)) > 0
 
 
 def execute_query(cursor, query, args=None):
@@ -73,13 +91,18 @@ def count(db, table, where=None):
     return next(select(db, query)).cnt
 
 
+DIALECTS = {"sqlite3": SQLLite3Dialect,
+            "MySQLdb.cursors": MySQLDialect,
+            "psycopg2._psycopg": PostgresDialect}
+
+
 def get_dialect(cursor):
-    if cursor.__class__.__module__ == "sqlite3":
-        return SQLLite3Dialect
-    if cursor.__class__.__module__ == "MySQLdb.cursors":
-        return MySQLDialect
-    # TODO: cleanup
-    raise Exception("Unknown dialect.")
+    mod = cursor.__class__.__module__
+    dialect = DIALECTS.get(mod)
+    if not dialect:
+        raise Exception("No dialect registered for connection module: %s" %
+                        mod)
+    return dialect
 
 
 def insert(db, table, objects, cols=None):
@@ -128,3 +151,14 @@ def delete(db, table, where=None):
 
     cursor = db.cursor()
     execute_query(cursor, query)
+
+
+def table_exists(db, table):
+    cursor = db.cursor()
+    dialect = get_dialect(cursor)
+    return dialect.table_exists(db, table)
+
+
+def drop_table(db, table):
+    # TODO: SQL injection
+    db.cursor().execute("DROP TABLE %s" % table)
