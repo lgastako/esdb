@@ -1,0 +1,6 @@
+- Necessary
+  - Update statements
+  - Fix SQL injection issues
+
+- Nice to have
+  - More DDL helpers
