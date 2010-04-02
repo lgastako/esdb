@@ -6,6 +6,7 @@ from conn import WrappedConnection
 from esdb import select
 from esdb import clause
 from esdb import insert
+from esdb import update
 from esdb import delete
 from esdb import count
 
@@ -51,6 +52,9 @@ class DialectTests(unittest.TestCase):
                                   first_name="Bam Bam",
                                   last_name="Rubble")
 
+    def tearDown(self):
+        self.db.rollback()
+
 
 class FunctionTests(DialectTests):
     """Tests the core functions that act on db api connections."""
@@ -78,11 +82,9 @@ class FunctionTests(DialectTests):
         self.assertEquals("Flintstone", person.last_name)
 
         self.assertRaises(StopIteration, lambda: next(people))
-        self.db.rollback()
 
     def test_basic_count(self):
         self.assertEquals(3, count(self.db, "people"))
-        self.db.rollback()
 
     def test_basic_insert(self):
         person = OpenStruct(id=4,
@@ -90,25 +92,33 @@ class FunctionTests(DialectTests):
                             last_name="Rubble")
 
         n = count(self.db, "people",
-                  clause("first_name = %s", person.first_name))
+                  clause(first_name=person.first_name))
         self.assertEquals(0, n)
 
         insert(self.db, "people", person)
 
         n = count(self.db, "people",
-                  clause("first_name = %s", person.first_name))
+                  clause(first_name=person.first_name))
         self.assertEquals(1, n)
-        self.db.rollback()
 
     def test_basic_delete_all(self):
         delete(self.db, "people")
         self.assertEquals(0, count(self.db, "people"))
-        self.db.rollback()
 
     def test_basic_individual_delete(self):
-        delete(self.db, "people", clause("first_name = %s", "Barney"))
+        delete(self.db, "people", clause(first_name="Barney"))
         self.assertEquals(2, count(self.db, "people"))
-        self.db.rollback()
+
+    def test_basic_update_all(self):
+        update(self.db, "people", last_name="Rubble")
+        self.assertEquals(3, count(self.db, "people",
+                                   where=clause(last_name="Rubble")))
+
+    def test_basic_update_some(self):
+        update(self.db, "people", last_name="Rubble",
+               where=clause(first_name="Wilma"))
+        self.assertEquals(2, count(self.db, "people",
+                                   where=clause(last_name="Rubble")))
 
 
 class MethodTests(DialectTests):
@@ -138,42 +148,36 @@ class MethodTests(DialectTests):
         self.assertEquals("Flintstone", person.last_name)
 
         self.assertRaises(StopIteration, lambda: next(people))
-        self.db.rollback()
 
     def test_basic_count(self):
         self.assertEquals(3, self.wdb.count("people"))
-        self.db.rollback()
 
     def test_basic_insert(self):
         person = self.bam_bam
 
         n = self.wdb.count("people",
-                           clause("first_name = %s", person.first_name))
+                           clause(first_name=person.first_name))
         self.assertEquals(0, n)
 
         self.wdb.insert("people", person)
 
         n = self.wdb.count("people",
-                           clause("first_name = %s", person.first_name))
+                           clause(first_name=person.first_name))
         self.assertEquals(1, n)
-        self.db.rollback()
 
     def test_basic_delete_all(self):
         self.wdb.delete("people")
         self.assertEquals(0, self.wdb.count("people"))
-        self.db.rollback()
 
     def test_basic_individual_delete(self):
-        self.wdb.delete("people", clause("first_name = %s", "Barney"))
+        self.wdb.delete("people", clause(first_name="Barney"))
         self.assertEquals(2, self.wdb.count("people"))
-        self.db.rollback()
 
     def test_rollback(self):
         self.wdb.insert("people", self.bam_bam)
         self.assertEquals(4, self.wdb.count("people"))
         self.wdb.rollback()
         self.assertEquals(3, self.wdb.count("people"))
-        self.db.rollback()
 
     def test_commit(self):
         self.wdb.insert("people", self.bam_bam)
@@ -182,7 +186,6 @@ class MethodTests(DialectTests):
         self.assertEquals(4, self.wdb.count("people"))
         self.wdb.rollback()
         self.assertEquals(4, self.wdb.count("people"))
-        self.db.rollback()
 
 
 class MethodTableTests(DialectTests):
@@ -213,14 +216,12 @@ class MethodTableTests(DialectTests):
 
     def test_basic_count(self):
         self.assertEquals(3, self.people_table.count())
-        self.db.rollback()
 
     def test_basic_count_with_clause(self):
         self.assertEquals(1,
                           self.people_table.count(where=\
-                                                      clause("first_name = %s",
-                                                             "Fred")))
-        self.db.rollback()
+                                                      clause(
+                                      first_name="Fred")))
 
     def test_basic_insert_with_wrapped_table(self):
         person = OpenStruct(id=4,
@@ -228,32 +229,28 @@ class MethodTableTests(DialectTests):
                             last_name="Rubble")
 
         self.assertEquals(0,
-                          self.people_table.count(clause("first_name = %s",
-                                                         person.first_name)))
+                          self.people_table.count(clause(
+                    first_name=person.first_name)))
 
         self.people_table.insert(person)
 
         self.assertEquals(1,
-                          self.people_table.count(clause("first_name = %s",
-                                                         person.first_name)))
-        self.db.rollback()
+                          self.people_table.count(clause(
+                    first_name=person.first_name)))
 
     def test_basic_delete_all(self):
         self.people_table.delete()
         self.assertEquals(0, self.people_table.count())
-        self.db.rollback()
 
     def test_basic_individual_delete(self):
-        self.people_table.delete(clause("first_name = %s", "Barney"))
+        self.people_table.delete(clause(first_name="Barney"))
         self.assertEquals(2, self.people_table.count())
-        self.db.rollback()
 
     def test_rollback(self):
         self.people_table.insert(self.bam_bam)
         self.assertEquals(4, self.people_table.count())
         self.people_table.rollback()
         self.assertEquals(3, self.people_table.count())
-        self.db.rollback()
 
     def test_commit(self):
         self.people_table.insert(self.bam_bam)
@@ -262,4 +259,7 @@ class MethodTableTests(DialectTests):
         self.assertEquals(4, self.wdb.count("people"))
         self.people_table.rollback()
         self.assertEquals(4, self.wdb.count("people"))
-        self.db.rollback()
+
+
+if __name__ == '__main__':
+    print "Don't run this directly, run the test_{database}.py"

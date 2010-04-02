@@ -1,6 +1,9 @@
 - Necessary
   - Update statements
   - Fix SQL injection issues
+  - Complex updates (e.g. with joins)
+  - Complex deletes (e.g. with joins)
 
 - Nice to have
+  - Custom exceptions
   - More DDL helpers

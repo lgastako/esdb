@@ -13,7 +13,7 @@ class SQLLite3Dialect(object):
     @staticmethod
     def table_exists(db, table):
         return count(db, "sqlite_master",
-                     where=clause("name = %s", table)) > 0
+                     where=clause(name=table)) > 0
 
 
 class MySQLDialect(object):
@@ -34,7 +34,7 @@ class PostgresDialect(object):
     @staticmethod
     def table_exists(db, table):
         return count(db, "pg_tables",
-                     where=clause("tablename = %s", table)) > 0
+                     where=clause(tablename=table)) > 0
 
 
 def execute_query(cursor, query, args=None):
@@ -69,19 +69,31 @@ def select(db, query, where=None):
         yield open_structify(row, cursor.description)
 
 
-def clause(fragment, *args, **kwargs):
+# def clause(fragment, *args, **kwargs):
+#     # For now this is fine, but eventually we'll have to hook into the
+#     # various dbapi driver's escaping mechanism.
+#     def quote(arg):
+#         if isinstance(arg, basestring):
+#             arg = "'%s'" % arg
+#         return arg
+#     if len(args):
+#         fragment %= tuple(quote(a) for a in args)
+#     if len(kwargs):
+#         fragment = fragment.format(**kwargs)
+#     logger.debug("Rendered fragment: %s" % fragment)
+#     return fragment
+
+def clause(**kwargs):
     # For now this is fine, but eventually we'll have to hook into the
     # various dbapi driver's escaping mechanism.
     def quote(arg):
         if isinstance(arg, basestring):
             arg = "'%s'" % arg
         return arg
-    if len(args):
-        fragment %= tuple(quote(a) for a in args)
-    if len(kwargs):
-        fragment = fragment.format(**kwargs)
-    logger.debug("Rendered fragment: %s" % fragment)
-    return fragment
+    if not len(kwargs):
+        raise Exception("Invalid clause")
+    return " AND ".join(["%s = %s" % (key, quote(value))
+                         for key, value in kwargs.items()])
 
 
 def count(db, table, where=None):
@@ -140,7 +152,33 @@ def insert(db, table, objects, cols=None):
         execute_query(cursor, query, args)
 
 
-#def update(db, query, ...
+def update(db, table, **kwargs):
+    where = None
+    if "where" in kwargs:
+        where = kwargs["where"]
+        del kwargs["where"]
+
+    if len(kwargs) < 1:
+        # TODO: Better message
+        raise Exception("Update required kwargs.")
+
+    # TODO: SQL injection
+    query = "UPDATE %s SET " % table
+
+    cursor = db.cursor()
+    dialect = get_dialect(cursor)
+
+    clauses = []
+    args = []
+    for key, value in kwargs.items():
+        clauses.append("%s = %s" % (key, dialect.placeholder))
+        args.append(value)
+    query += ", ".join(clauses)
+
+    if where:
+        query += " WHERE " + unicode(where)
+
+    execute_query(cursor, query, args)
 
 
 def delete(db, table, where=None):
