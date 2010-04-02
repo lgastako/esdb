@@ -27,6 +27,4 @@ class SQLite3MethodTableTests(test_dialects.MethodTableTests):
 
 
 if __name__ == '__main__':
-    import logging
-    logging.basicConfig(level=logging.DEBUG)
     unittest.main()
